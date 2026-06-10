@@ -6,7 +6,7 @@ function App() {
   const [moisChoisi, setMoisChoisi] = useState('Global')
 
   // TON ADRESSE SERVEUR SUR INTERNET
-  const URL_API = 'https://dashboard-ventes.onrender.com';
+  const URL_API = 'https://dashboard-ventes-31z6.onrender.com';
 
   const chargerDonnees = () => {
     fetch(`${URL_API}/api/data`)

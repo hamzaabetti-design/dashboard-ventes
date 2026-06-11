@@ -25,14 +25,16 @@ const VILLES_CONFIG = {
 const ORDER_MOIS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // ==========================================
-// 1. MOTEUR LECTURE CSV (FAST PARSER)
+// 1. MOTEUR LECTURE CSV (FAST + SÉCURISÉ BOM)
 // ==========================================
 const parseCSVFast = (text) => {
   const lines = text.split(/\r?\n/);
   if (lines.length === 0) return [];
 
-  const delimiter = lines[0].includes(';') ? ';' : (lines[0].includes('\t') ? '\t' : ',');
-  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/"/g, '').toLowerCase());
+  // CORRECTION : Nettoyage du caractère invisible Windows (BOM)
+  const firstLine = lines[0].replace(/^\uFEFF/, '');
+  const delimiter = firstLine.includes(';') ? ';' : (firstLine.includes('\t') ? '\t' : ',');
+  const headers = firstLine.split(delimiter).map(h => h.trim().replace(/"/g, '').toLowerCase());
 
   const data = [];
   for (let i = 1; i < lines.length; i++) {
@@ -118,10 +120,10 @@ export default function App() {
         const parsedData = parseCSVFast(text);
         if(parsedData.length === 0) throw new Error("Fichier vide");
         setLignesBrutes(parsedData);
-        setToast({ msg: "Données chargées !", type: "success" });
+        setToast({ msg: "Données chargées et analysées !", type: "success" });
         setTimeout(() => setToast(null), 3000);
       } catch (err) {
-        setToast({ msg: "Erreur lecture", type: "error" });
+        setToast({ msg: "Erreur lecture fichier", type: "error" });
         setTimeout(() => setToast(null), 3000);
       }
     };
@@ -138,7 +140,6 @@ export default function App() {
     blue: '#2563eb', green: '#10b981', red: '#ef4444'
   };
 
-  // PRÉ-CALCUL UNIQUE À L'UPLOAD
   const baseData = useMemo(() => {
     if (lignesBrutes.length === 0) return null;
 
@@ -202,7 +203,6 @@ export default function App() {
     };
   }, [lignesBrutes]);
 
-  // FILTRAGE INSTANTANÉ AU CLIC
   const dataTraitee = useMemo(() => {
     if (!baseData) return null;
 
@@ -320,7 +320,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ================= SIDEBAR ================= */}
+      {/* SIDEBAR */}
       <div style={{ width: '220px', backgroundColor: theme.sidebar, color: 'white', display: 'flex', flexDirection: 'column', height: '100%', flexShrink: 0 }}>
         <div style={{ padding: '15px', borderBottom: '1px solid #1f2937', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <div style={{ width: '24px', height: '24px', backgroundColor: '#2563eb', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px' }}>📊</div>
@@ -364,10 +364,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* ================= CONTENU PRINCIPAL ================= */}
+      {/* CONTENU PRINCIPAL */}
       <div style={{ flex: 1, height: '100%', padding: '10px 15px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
-        {/* HEADER */}
+        {/* HEADER COMPACT */}
         <div style={{ minHeight: '50px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.card, padding: '6px 15px', borderRadius: '8px', marginBottom: '8px', border: `1px solid ${theme.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
             <div>
@@ -417,10 +417,7 @@ export default function App() {
 
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', overflow: 'hidden' }}>
           
-          {/* GRAPHIQUES GAUCHE */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden' }}>
-            
-            {/* LIGNE : CORRIGÉE (interval=0 force l'affichage, tickFormatter raccourcit à 3 lettres) */}
             <div style={{ flex: 1, backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
               <h3 style={{ fontSize: '11px', color: theme.text, fontWeight: 'bold', display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
                 <BarChart2 size={14} color="#2563eb" /> Évolution Mensuelle
@@ -429,14 +426,7 @@ export default function App() {
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={evolutionData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.border} />
-                    <XAxis 
-                      dataKey="mois" 
-                      interval={0} 
-                      tickFormatter={(v) => v ? v.substring(0, 3) : ''} 
-                      tick={{ fill: theme.textMuted, fontSize: 10 }} 
-                      axisLine={false} 
-                      tickLine={false} 
-                    />
+                    <XAxis dataKey="mois" interval={0} tickFormatter={(v) => v ? v.substring(0, 3) : ''} tick={{ fill: theme.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: theme.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                     <Tooltip contentStyle={{ backgroundColor: theme.card, color: theme.text, borderRadius: '6px', borderColor: theme.border, fontSize: '11px' }} formatter={(v) => `${Number(v).toLocaleString('fr-FR')} $`} />
                     <Bar dataKey="revenu" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
@@ -446,7 +436,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* BARRES : CORRIGÉES (interval=0 force l'affichage des noms, et on coupe si trop long) */}
             <div style={{ flex: 1, backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
               <h3 style={{ fontSize: '11px', color: theme.text, fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><Award size={14} color="#8b5cf6" /> Top Produits</span>
@@ -456,16 +445,7 @@ export default function App() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={produitsTries.slice(0, 5)} layout="vertical" margin={{ left: 0, right: 15, top: 0, bottom: 0 }}>
                     <XAxis type="number" hide />
-                    <YAxis 
-                      dataKey="nom" 
-                      type="category" 
-                      interval={0}
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fill: theme.text }} 
-                      width={110} 
-                      tickFormatter={(v) => String(v).length > 15 ? String(v).substring(0, 15) + '...' : v}
-                    />
+                    <YAxis dataKey="nom" type="category" interval={0} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: theme.text }} width={110} tickFormatter={(v) => String(v).length > 15 ? String(v).substring(0, 15) + '...' : v} />
                     <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: theme.card, color: theme.text, borderRadius: '6px', fontSize: '11px' }} formatter={(v) => `${Number(v).toLocaleString('fr-FR')} $`} />
                     <Bar 
                       dataKey="revenu" 
